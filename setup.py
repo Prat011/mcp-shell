@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Setup script for MCP Terminal
+Setup script for MCP Shell
 """
 
 from setuptools import setup, find_packages
@@ -30,9 +30,9 @@ else:
 setup(
     name="mcp-terminal",
     version="1.0.0",
-    author="MCP Terminal Team",
+    author="MCP Shell Team",
     author_email="dev@mcpterminal.com",
-    description="A powerful terminal-based Model Context Protocol client",
+    description="A powerful shell-based Model Context Protocol client",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/mcpterminal/mcp-terminal",

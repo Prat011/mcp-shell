@@ -1,5 +1,5 @@
 """
-Configuration Management for MCP Terminal
+Configuration Management for MCP Shell
 
 Handles loading and saving of MCP server configurations
 """
@@ -13,7 +13,7 @@ from .core import MCPServerConfig, TransportType
 
 
 class ConfigManager:
-    """Manages MCP Terminal configuration"""
+    """Manages MCP Shell configuration"""
     
     def __init__(self, config_path: Optional[Path] = None):
         self.config_path = config_path or self._get_default_config_path()

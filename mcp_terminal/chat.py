@@ -1,5 +1,5 @@
 """
-Interactive Chat Session for MCP Terminal
+Interactive Chat Session for MCP Shell
 
 Provides LLM-powered chat with automatic MCP tool calling capabilities
 """
@@ -65,7 +65,7 @@ class ChatSession:
    ║   ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝       ╚═╝     ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝ ║
    ╚══════════════════════════════════════════════════════════════════════════════╝
 
-🤖 MCP Terminal Chat Mode
+🤖 MCP Shell Chat Mode
 
 Welcome to interactive chat with MCP tool integration!
 Type your questions and I'll help you using available MCP tools.
@@ -390,7 +390,7 @@ Be conversational, helpful, and make good use of the available tools to assist t
     
     def _show_help(self):
         """Show help information"""
-        help_text = """[bold cyan]MCP Terminal Chat Commands[/bold cyan]
+        help_text = """[bold cyan]MCP Shell Chat Commands[/bold cyan]
 
 [yellow]Chat Commands:[/yellow]
   /help     - Show this help message

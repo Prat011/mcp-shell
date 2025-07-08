@@ -1,5 +1,5 @@
 """
-Core MCP Terminal Client Implementation
+Core MCP Shell Client Implementation
 
 A modern, clean implementation of a Model Context Protocol (MCP) client
 that provides both direct tool execution and interactive chat capabilities.

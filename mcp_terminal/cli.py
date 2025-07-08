@@ -1,7 +1,7 @@
 """
-MCP Terminal CLI Interface
+MCP Shell CLI Interface
 
-Command-line interface for the MCP Terminal client that provides
+Command-line interface for the MCP Shell client that provides
 both direct tool execution and interactive chat capabilities.
 """
 
@@ -28,7 +28,7 @@ console = Console()
 
 
 class MCPTerminal:
-    """Main MCP Terminal application"""
+    """Main MCP Shell application"""
     
     def __init__(self):
         self.client = MCPClient()

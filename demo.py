@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-MCP Terminal Demo - Showcase of the terminal-based MCP client
+MCP Shell Demo - Showcase of the shell-based MCP client
 
-This demo shows how to use the MCP Terminal client both
+This demo shows how to use the MCP Shell client both
 programmatically and via command line.
 """
 
@@ -23,7 +23,7 @@ console = Console()
 
 async def demo_basic_client():
     """Demo basic MCP client functionality"""
-    console.print("[bold cyan]🚀 MCP Terminal Demo - Basic Client[/bold cyan]\n")
+    console.print("[bold cyan]🚀 MCP Shell Demo - Basic Client[/bold cyan]\n")
     
     # Create client
     client = MCPClient()
@@ -58,7 +58,7 @@ async def demo_basic_client():
 
 async def demo_chat_session():
     """Demo chat session (without actual LLM)"""
-    console.print("[bold cyan]🤖 MCP Terminal Demo - Chat Session[/bold cyan]\n")
+    console.print("[bold cyan]🤖 MCP Shell Demo - Chat Session[/bold cyan]\n")
     
     # Create a mock client
     client = MCPClient()
@@ -80,7 +80,7 @@ async def demo_chat_session():
 
 def demo_cli_commands():
     """Show CLI command examples"""
-    console.print("[bold cyan]⚡ MCP Terminal Demo - CLI Commands[/bold cyan]\n")
+    console.print("[bold cyan]⚡ MCP Shell Demo - CLI Commands[/bold cyan]\n")
     
     commands = [
         ("mcp-terminal --help", "Show main help"),
@@ -103,7 +103,7 @@ def demo_cli_commands():
 
 def demo_server_examples():
     """Show MCP server examples"""
-    console.print("[bold cyan]🌐 MCP Terminal Demo - Server Examples[/bold cyan]\n")
+    console.print("[bold cyan]🌐 MCP Shell Demo - Server Examples[/bold cyan]\n")
     
     servers = [
         {
@@ -156,7 +156,7 @@ async def main():
 
 🚀 DEMO MODE 🚀
 
-Welcome to the MCP Terminal demonstration!
+Welcome to the MCP Shell demonstration!
 This shows the capabilities of the modern terminal-based
 Model Context Protocol client.
 [/bold green]

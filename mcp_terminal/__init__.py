@@ -1,5 +1,5 @@
 """
-MCP Terminal - A powerful terminal-based Model Context Protocol client
+MCP Shell - A powerful shell-based Model Context Protocol client
 
 This package provides both direct tool execution capabilities and interactive
 chat mode with LLM integration for MCP (Model Context Protocol) servers.
@@ -11,8 +11,8 @@ from .chat import ChatSession
 from .config import ConfigManager
 
 __version__ = "1.0.0"
-__author__ = "MCP Terminal"
-__description__ = "A powerful terminal-based Model Context Protocol client"
+__author__ = "MCP Shell"
+__description__ = "A powerful shell-based Model Context Protocol client"
 
 __all__ = [
     "MCPClient",
