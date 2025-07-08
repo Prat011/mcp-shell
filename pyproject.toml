@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-terminal"
+version = "1.0.0"
+authors = [
+    {name = "MCP Terminal Team", email = "dev@mcpterminal.com"},
+]
+description = "A powerful terminal-based Model Context Protocol client"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Communications :: Chat",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+keywords = ["mcp", "model-context-protocol", "terminal", "cli", "chat", "llm", "ai", "tools"]
+
+dependencies = [
+    "click>=8.0.0",
+    "rich>=13.0.0",
+    "aiohttp>=3.8.0", 
+    "litellm>=1.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=22.0.0",
+    "mypy>=1.0.0",
+]
+
+[project.scripts]
+mcp-terminal = "mcp_terminal.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/mcpterminal/mcp-terminal"
+Documentation = "https://github.com/mcpterminal/mcp-terminal#readme"
+Repository = "https://github.com/mcpterminal/mcp-terminal.git"
+"Bug Reports" = "https://github.com/mcpterminal/mcp-terminal/issues"
+
+[tool.setuptools.packages.find]
+include = ["mcp_terminal*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38']
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
+asyncio_mode = "auto" 
