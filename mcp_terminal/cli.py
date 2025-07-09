@@ -111,10 +111,51 @@ class MCPTerminal:
             # Remove from config if connection failed
             self.config_manager.remove_server(name)
     
-    async def remove_server(self, name: str):
+    async def remove_server(self, name: str, force: bool = False):
         """Remove a server"""
-        self.config_manager.remove_server(name)
-        console.print(f"[green]✅ Server '{name}' removed from configuration[/green]")
+        # Check if server exists first
+        server_config = self.config_manager.get_server(name)
+        if not server_config:
+            console.print(f"[red]❌ Server '{name}' not found in configuration[/red]")
+            
+            # Show available servers
+            configs = self.config_manager.load_servers()
+            if configs:
+                console.print("\n[yellow]Available servers:[/yellow]")
+                for config in configs:
+                    console.print(f"  • {config.name}")
+            else:
+                console.print("[dim]No servers configured.[/dim]")
+            return
+        
+        # Show server details
+        console.print(f"[yellow]Server to remove:[/yellow]")
+        if server_config.transport == TransportType.STDIO:
+            details = f"{server_config.command} {' '.join(server_config.args or [])}"
+        else:
+            details = server_config.url or "No URL"
+        console.print(f"  Name: {server_config.name}")
+        console.print(f"  Transport: {server_config.transport.value}")
+        console.print(f"  Details: {details}")
+        
+        # Confirmation (unless forced)
+        if not force:
+            console.print()
+            confirm = Prompt.ask(
+                f"[red]Are you sure you want to remove server '{name}'?[/red]",
+                choices=["y", "n"],
+                default="n"
+            )
+            if confirm.lower() != "y":
+                console.print("[yellow]❌ Server removal cancelled[/yellow]")
+                return
+        
+        # Remove the server
+        success = self.config_manager.remove_server(name)
+        if success:
+            console.print(f"[green]✅ Server '{name}' removed from configuration[/green]")
+        else:
+            console.print(f"[red]❌ Failed to remove server '{name}'[/red]")
     
     def list_servers(self):
         """List configured servers"""
@@ -232,35 +273,37 @@ app = MCPTerminal()
 @click.pass_context
 @click.option('--config', '-c', type=click.Path(), help='Configuration file path')
 def cli(ctx, config):
-    """
-    ╔═══════════════════════════════════╗
-    ║                                   ║
-    ║  ███╗   ███╗ ██████╗██████╗       ║
-    ║  ████╗ ████║██╔════╝██╔══██╗      ║
-    ║  ██╔████╔██║██║     ██████╔╝      ║
-    ║  ██║╚██╔╝██║██║     ██╔═══╝       ║
-    ║  ██║ ╚═╝ ██║╚██████╗██║           ║
-    ║  ╚═╝     ╚═╝ ╚═════╝╚═╝           ║
-    ║                                   ║
-    ║  ███████╗██╗  ██╗███████╗██╗      ║
-    ║  ██╔════╝██║  ██║██╔════╝██║      ║
-    ║  ███████╗███████║█████╗  ██║      ║
-    ║  ╚════██║██╔══██║██╔══╝  ██║      ║
-    ║  ███████║██║  ██║███████╗███████╗ ║
-    ║  ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝ ║
-    ║                                   ║
-    ╚═══════════════════════════════════╝
-    
-    🚀 MCP Shell - A powerful shell-based Model Context Protocol client
+    """🚀 MCP Shell - A powerful shell-based Model Context Protocol client
     
     Connect to MCP servers and execute tools directly from the command line,
     or start an interactive chat session with LLM integration.
     """
+    logo = (
+        "    +=========================================+\n"
+        "    |                                         |\n"
+        "    |  ███╗   ███╗ ██████╗██████╗             |\n"
+        "    |  ████╗ ████║██╔════╝██╔══██╗            |\n"
+        "    |  ██╔████╔██║██║     ██████╔╝            |\n"
+        "    |  ██║╚██╔╝██║██║     ██╔═══╝             |\n"
+        "    |  ██║ ╚═╝ ██║╚██████╗██║                 |\n"
+        "    |  ╚═╝     ╚═╝ ╚═════╝╚═╝                 |\n"
+        "    |                                         |\n"
+        "    | ███████╗██╗  ██╗███████╗██╗     ██╗     |\n"
+        "    | ██╔════╝██║  ██║██╔════╝██║     ██║     |\n"
+        "    | ███████╗███████║█████╗  ██║     ██║     |\n"
+        "    | ╚════██║██╔══██║██╔══╝  ██║     ██║     |\n"
+        "    | ███████║██║  ██║███████╗███████╗███████╗|\n"
+        "    | ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝|\n"
+        "    |                                         |\n"
+        "    +=========================================+"
+    )
+
     if config:
         app.config_manager.config_path = Path(config)
     
     # If no subcommand, show help
     if ctx.invoked_subcommand is None:
+        console.print(logo)
         click.echo(ctx.get_help())
         
         # Also show available tools if any servers are configured
@@ -302,11 +345,12 @@ def server_add():
 
 @server.command('remove')
 @click.argument('name')
-def server_remove(name):
+@click.option('--force', '-f', is_flag=True, help='Remove server without confirmation')
+def server_remove(name, force):
     """Remove an MCP server"""
     async def _run_remove():
         try:
-            await app.remove_server(name)
+            await app.remove_server(name, force=force)
         finally:
             await app.cleanup()
     

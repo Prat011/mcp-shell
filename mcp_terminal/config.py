@@ -132,11 +132,21 @@ class ConfigManager:
         # Save updated list
         self.save_servers(servers)
     
-    def remove_server(self, name: str):
-        """Remove a server configuration"""
+    def remove_server(self, name: str) -> bool:
+        """Remove a server configuration
+        
+        Returns:
+            bool: True if server was found and removed, False if not found
+        """
         servers = self.load_servers()
+        original_count = len(servers)
         servers = [s for s in servers if s.name != name]
+        
+        if len(servers) == original_count:
+            return False  # Server not found
+        
         self.save_servers(servers)
+        return True  # Server was removed
     
     def get_server(self, name: str) -> Optional[MCPServerConfig]:
         """Get a specific server configuration"""
