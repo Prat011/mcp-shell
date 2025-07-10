@@ -29,21 +29,47 @@ class ChatSession:
     Interactive chat session with LLM and MCP integration
     """
     
-    def __init__(self, mcp_client: MCPClient, model: str = "gpt-4.1", api_key: Optional[str] = None):
+    def __init__(self, mcp_client: MCPClient, model: str = "gpt-4o-mini", api_key: Optional[str] = None):
         self.mcp_client = mcp_client
         self.model = model
         self.api_key = api_key or self._get_api_key()
         self.conversation_history: List[Dict[str, Any]] = []
         self.running = False
+        self.is_ollama_model = self._is_ollama_model(model)
         
-        # Configure LiteLLM
-        if self.api_key:
-            if self.model.startswith("gpt"):
-                os.environ["OPENAI_API_KEY"] = self.api_key
-            elif self.model.startswith("claude"):
-                os.environ["ANTHROPIC_API_KEY"] = self.api_key
-            elif self.model.startswith("gemini"):
-                os.environ["GOOGLE_API_KEY"] = self.api_key
+        # Configure LiteLLM based on model type
+        self._configure_llm()
+    
+    def _is_ollama_model(self, model: str) -> bool:
+        """Check if the model is an Ollama model"""
+        return model.startswith("ollama/") or (
+            not any(model.startswith(prefix) for prefix in ["gpt", "claude", "gemini", "groq"]) and
+            self.mcp_client.is_ollama_available()
+        )
+    
+    def _configure_llm(self):
+        """Configure LiteLLM based on model type"""
+        if self.is_ollama_model:
+            # For Ollama models, ensure the model is formatted correctly for LiteLLM
+            if not self.model.startswith("ollama/"):
+                self.model = f"ollama/{self.model}"
+            
+            # Set Ollama base URL if needed
+            ollama_base_url = os.environ.get('OLLAMA_HOST', 'http://localhost:11434')
+            os.environ['OLLAMA_API_BASE'] = ollama_base_url
+            
+            console.print(f"[green]🦙 Using Ollama model: {self.model.replace('ollama/', '')}[/green]")
+        else:
+            # Configure API keys for cloud providers
+            if self.api_key:
+                if self.model.startswith("gpt"):
+                    os.environ["OPENAI_API_KEY"] = self.api_key
+                elif self.model.startswith("claude"):
+                    os.environ["ANTHROPIC_API_KEY"] = self.api_key
+                elif self.model.startswith("gemini"):
+                    os.environ["GOOGLE_API_KEY"] = self.api_key
+                elif self.model.startswith("groq"):
+                    os.environ["GROQ_API_KEY"] = self.api_key
     
     def _get_api_key(self) -> Optional[str]:
         """Get API key from environment variables"""
@@ -54,9 +80,49 @@ class ChatSession:
                 return api_key
         return None
     
+    async def validate_model(self) -> bool:
+        """Validate that the selected model is available"""
+        if self.is_ollama_model:
+            if not self.mcp_client.is_ollama_available():
+                console.print("[red]❌ Ollama is not running. Please start Ollama:[/red]")
+                console.print("[dim]   ollama serve[/dim]")
+                return False
+            
+            # Check if the specific model is available
+            model_name = self.model.replace("ollama/", "")
+            models = await self.mcp_client.get_ollama_models()
+            model_names = [m.get('name', '').split(':')[0] for m in models]
+            
+            if model_name not in model_names and model_name not in [m.get('name', '') for m in models]:
+                console.print(f"[yellow]⚠️  Model '{model_name}' not found locally.[/yellow]")
+                
+                # Offer to pull the model
+                should_pull = Prompt.ask(
+                    f"Would you like to pull '{model_name}' now?",
+                    choices=["y", "n"],
+                    default="y"
+                )
+                
+                if should_pull.lower() == "y":
+                    success = await self.mcp_client.pull_ollama_model(model_name)
+                    if not success:
+                        console.print(f"[red]❌ Failed to pull model '{model_name}'[/red]")
+                        return False
+                else:
+                    console.print("[yellow]❌ Cannot proceed without the model[/yellow]")
+                    return False
+        else:
+            # For cloud models, check if API key is available
+            if not self.api_key:
+                console.print("[red]❌ No API key found for cloud models.[/red]")
+                console.print("[dim]   Set one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY[/dim]")
+                return False
+        
+        return True
+    
     def _show_welcome_banner(self):
         """Display welcome banner for chat mode"""
-        banner_text = """[bold cyan]
+        banner_text = f"""[bold cyan]
 +-------------------------------------------------------------------------------------+
 |   ██████╗██╗  ██╗ █████╗ ████████╗    ███╗   ███╗ ██████╗ ██████╗ ███████╗            |
 |  ██╔════╝██║  ██║██╔══██╗╚══██╔══╝    ████╗ ████║██╔═══██╗██╔══██╗██╔════╝            |
@@ -71,11 +137,14 @@ class ChatSession:
 Welcome to interactive chat with MCP tool integration!
 Type your questions and I'll help you using available MCP tools.
 
+Current Model: {self.model}{"" if not self.is_ollama_model else " (Local via Ollama)"}
+
 Commands:
   /help     - Show this help
   /tools    - List available MCP tools  
   /status   - Show server connection status
   /model    - Show current model
+  /models   - List available models
   /clear    - Clear conversation history
   /exit     - Exit chat mode
 [/bold cyan]"""
@@ -86,10 +155,14 @@ Commands:
 
         console.print(Panel(text, title="Chat Session", border_style="blue"))
         
-        # Show available tools
+        # Show tool availability and limitations
         if self.mcp_client.tools:
             tool_count = len(self.mcp_client.tools)
-            console.print(f"[green]📦 {tool_count} MCP tools available for use[/green]\n")
+            if self.is_ollama_model:
+                console.print(f"[yellow]📦 {tool_count} MCP tools available, but this Ollama model doesn't support automatic tool calling.[/yellow]")
+                console.print(f"[yellow]💡 You can ask about the tools and I'll guide you on how to use them manually.[/yellow]\n")
+            else:
+                console.print(f"[green]📦 {tool_count} MCP tools available for automatic use[/green]\n")
         else:
             console.print("[yellow]⚠️  No MCP tools available. Connect to servers first.[/yellow]\n")
     
@@ -139,28 +212,33 @@ Commands:
         
         try:
             # Show thinking indicator
-            with Live(Spinner("dots", text="🤔 Thinking..."), console=console, transient=True):
+            thinking_text = f"🤔 Thinking{'...' if not self.is_ollama_model else ' (local model)...'}"
+            with Live(Spinner("dots", text=thinking_text), console=console, transient=True):
                 
-                # Call LLM with tools
-                if available_tools:
+                # For Ollama models, disable function calling as many don't support it properly
+                # Use text-based tool descriptions instead
+                if available_tools and not self.is_ollama_model:
                     response = await asyncio.to_thread(
                         litellm.completion,
                         model=self.model,
                         messages=messages,
                         tools=available_tools,
-                        tool_choice="auto"
+                        tool_choice="auto",
+                        temperature=0.7  # Add some creativity
                     )
                 else:
+                    # For Ollama models or when no tools, use regular completion
                     response = await asyncio.to_thread(
                         litellm.completion,
                         model=self.model,
-                        messages=messages
+                        messages=messages,
+                        temperature=0.7
                     )
             
             message = response.choices[0].message
             
-            # Handle tool calls
-            if hasattr(message, 'tool_calls') and message.tool_calls:
+            # Handle tool calls (only for non-Ollama models)
+            if hasattr(message, 'tool_calls') and message.tool_calls and not self.is_ollama_model:
                 await self._handle_tool_calls(message, message.tool_calls)
             else:
                 # Regular response
@@ -173,7 +251,14 @@ Commands:
                     })
         
         except Exception as e:
-            console.print(f"[red]❌ Error generating response: {e}[/red]")
+            error_msg = f"❌ Error generating response: {e}"
+            if self.is_ollama_model and "Connection refused" in str(e):
+                error_msg += "\n💡 Is Ollama running? Try: ollama serve"
+            elif "API key" in str(e):
+                error_msg += "\n💡 Check your API key configuration"
+            elif self.is_ollama_model and "function" in str(e).lower():
+                error_msg += "\n💡 Function calling not supported with this Ollama model"
+            console.print(f"[red]{error_msg}[/red]")
     
     async def _handle_tool_calls(self, message, tool_calls):
         """Handle tool calling from LLM"""
@@ -343,7 +428,25 @@ Commands:
         
         tools_text = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
         
-        return f"""You are a helpful AI assistant with access to MCP (Model Context Protocol) tools. 
+        if self.is_ollama_model and self.mcp_client.tools:
+            # For Ollama models, be direct about the limitation
+            return f"""You are a helpful AI assistant running as a local Ollama model.
+
+Important: You cannot automatically call MCP tools because Ollama models don't support function calling.
+
+Available MCP tools (for manual use):
+{tools_text}
+
+When users ask about tasks that would require these tools:
+1. Clearly explain that you cannot automatically call the tools
+2. Describe which tool would be helpful for their request
+3. Suggest they use the command-line interface to call tools manually
+4. Provide guidance on MCP tool usage
+
+Be honest about your limitations while still being helpful and informative."""
+        else:
+            # For cloud models with function calling support
+            return f"""You are a helpful AI assistant with access to MCP (Model Context Protocol) tools. 
 You can help users by calling these tools when appropriate.
 
 Available MCP tools:
@@ -359,8 +462,8 @@ Be conversational, helpful, and make good use of the available tools to assist t
     
     async def start_interactive(self):
         """Start interactive chat session"""
-        if not self.api_key:
-            console.print("[red]❌ No API key found. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GOOGLE_API_KEY[/red]")
+        # Validate model availability first
+        if not await self.validate_model():
             return
         
         self._show_welcome_banner()
@@ -382,6 +485,8 @@ Be conversational, helpful, and make good use of the available tools to assist t
                     self.mcp_client.show_status()
                 elif user_input.lower() == '/model':
                     console.print(f"[cyan]Current model: [bold]{self.model}[/bold][/cyan]")
+                elif user_input.lower() == '/models':
+                    await self.mcp_client.show_ollama_models()
                 elif user_input.lower() == '/clear':
                     self.conversation_history.clear()
                     console.print("[green]✅ Conversation history cleared[/green]")
@@ -402,6 +507,7 @@ Be conversational, helpful, and make good use of the available tools to assist t
   /tools    - List available MCP tools
   /status   - Show MCP server connection status
   /model    - Show current LLM model
+  /models   - List available models
   /clear    - Clear conversation history
   /exit     - Exit chat mode
 

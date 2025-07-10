@@ -10,7 +10,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 import click
 from rich.console import Console
@@ -179,6 +179,164 @@ class MCPTerminal:
             table.add_row(config.name, config.transport.value, details)
         
         console.print(table)
+    
+    async def show_model_selection_menu(self) -> Optional[str]:
+        """Show interactive model selection menu"""
+        console.print("[bold cyan]🚀 Select a model:[/bold cyan]\n")
+        
+        # Predefined popular models
+        popular_models = [
+            ("gpt-4o", "OpenAI GPT-4o (Latest GPT)"),
+            ("gpt-4o-mini", "OpenAI GPT-4o Mini (Fast & Cheap)"),
+            ("claude-3-5-sonnet-20241022", "Anthropic Claude 3.5 Sonnet (Latest)"),
+            ("claude-3-haiku-20240307", "Anthropic Claude 3 Haiku (Fast)"),
+            ("gemini-1.5-flash", "Google Gemini 1.5 Flash"),
+            ("groq/llama-3.1-70b-versatile", "Groq Llama 3.1 70B"),
+        ]
+        
+        # Get Ollama models if available
+        ollama_models = []
+        if self.client.is_ollama_available():
+            models = await self.client.get_ollama_models()
+            ollama_models = [(f"ollama/{m['name']}", f"Ollama: {m['name']} (Local)") for m in models]
+        
+        # Build options menu
+        options = []
+        
+        # Add popular cloud models
+        console.print("[bold]⭐ Popular Models:[/bold]")
+        for i, (model, desc) in enumerate(popular_models, 1):
+            console.print(f"   {i}. {desc}")
+            options.append(model)
+        
+        # Add Ollama models if available
+        if ollama_models:
+            console.print(f"\n[bold]🦙 Local Ollama Models:[/bold]")
+            for i, (model, desc) in enumerate(ollama_models, len(popular_models) + 1):
+                console.print(f"   {i}. {desc}")
+                options.append(model)
+        else:
+            console.print(f"\n[dim]🦙 No Ollama models found (install Ollama and pull models to see them here)[/dim]")
+        
+        # Add special options
+        browse_option = len(options) + 1
+        manual_option = len(options) + 2
+        console.print(f"\n   {browse_option}. 🔍 Browse all available models")
+        console.print(f"   {manual_option}. ✏️  Enter model name manually")
+        console.print(f"   0. ❌ Cancel")
+        
+        # Get user choice
+        try:
+            choice = int(Prompt.ask(
+                "\n🎯 Enter your choice",
+                default="2"  # Default to gpt-4o-mini
+            ))
+            
+            if choice == 0:
+                return None
+            elif 1 <= choice <= len(options):
+                return options[choice - 1]
+            elif choice == browse_option:
+                return await self._browse_all_models()
+            elif choice == manual_option:
+                return self._manual_model_entry()
+            else:
+                console.print("[red]❌ Invalid choice[/red]")
+                return None
+                
+        except (ValueError, KeyboardInterrupt):
+            console.print("[yellow]❌ Selection cancelled[/yellow]")
+            return None
+    
+    async def _browse_all_models(self) -> Optional[str]:
+        """Browse all available models by provider"""
+        console.print("\n[bold cyan]🔍 Browse Models by Provider[/bold cyan]\n")
+        
+        providers = [
+            ("OpenAI", ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]),
+            ("Anthropic", ["claude-3-5-sonnet-20241022", "claude-3-opus-20240229", "claude-3-haiku-20240307"]),
+            ("Google", ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"]),
+            ("Groq", ["groq/llama-3.1-70b-versatile", "groq/llama-3.1-8b-instant", "groq/mixtral-8x7b-32768"]),
+        ]
+        
+        # Add Ollama if available
+        if self.client.is_ollama_available():
+            models = await self.client.get_ollama_models()
+            if models:
+                ollama_models = [f"ollama/{m['name']}" for m in models]
+                providers.append(("Ollama (Local)", ollama_models))
+        
+        # Show providers
+        for i, (provider, models) in enumerate(providers, 1):
+            console.print(f"   {i}. {provider} ({len(models)} models)")
+        
+        console.print(f"   0. ← Go back")
+        
+        try:
+            choice = int(Prompt.ask("\n🎯 Select provider"))
+            
+            if choice == 0:
+                return await self.show_model_selection_menu()
+            elif 1 <= choice <= len(providers):
+                provider_name, models = providers[choice - 1]
+                return self._select_from_provider(provider_name, models)
+            else:
+                console.print("[red]❌ Invalid choice[/red]")
+                return None
+                
+        except (ValueError, KeyboardInterrupt):
+            return None
+    
+    def _select_from_provider(self, provider_name: str, models: List[str]) -> Optional[str]:
+        """Select a model from a specific provider"""
+        console.print(f"\n[bold cyan]🔍 {provider_name} Models[/bold cyan]\n")
+        
+        for i, model in enumerate(models, 1):
+            # Clean up model name for display
+            display_name = model.replace("groq/", "").replace("ollama/", "")
+            console.print(f"   {i}. {display_name}")
+        
+        console.print(f"   0. ← Go back")
+        
+        try:
+            choice = int(Prompt.ask("\n🎯 Select model"))
+            
+            if choice == 0:
+                return None
+            elif 1 <= choice <= len(models):
+                return models[choice - 1]
+            else:
+                console.print("[red]❌ Invalid choice[/red]")
+                return None
+                
+        except (ValueError, KeyboardInterrupt):
+            return None
+    
+    def _manual_model_entry(self) -> Optional[str]:
+        """Allow manual model entry"""
+        console.print("\n[bold cyan]✏️  Manual Model Entry[/bold cyan]")
+        console.print("[dim]Examples: gpt-4o, claude-3-5-sonnet-20241022, ollama/llama3.2, groq/llama-3.1-70b-versatile[/dim]\n")
+        
+        try:
+            model = Prompt.ask("Enter model name")
+            if model.strip():
+                return model.strip()
+            return None
+        except KeyboardInterrupt:
+            return None
+    
+    async def pull_ollama_model(self, model_name: str):
+        """Pull an Ollama model interactively"""
+        if not self.client.is_ollama_available():
+            console.print("[red]❌ Ollama is not available[/red]")
+            console.print("[dim]   Install from: https://ollama.com[/dim]")
+            return
+        
+        success = await self.client.pull_ollama_model(model_name)
+        if success:
+            console.print(f"[green]✅ Model '{model_name}' is now available for local use[/green]")
+        else:
+            console.print(f"[red]❌ Failed to pull model '{model_name}'[/red]")
     
     async def call_tool_with_args(self, tool_name: str, **kwargs):
         """Call a tool with provided arguments"""

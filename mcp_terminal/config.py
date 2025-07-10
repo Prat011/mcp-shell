@@ -167,9 +167,63 @@ class ConfigManager:
         config = self.load_config()
         return config.get(key, default)
     
+    # Ollama-specific configuration methods
+    def get_ollama_base_url(self) -> str:
+        """Get Ollama base URL"""
+        return self.get_setting('ollama.base_url', 'http://localhost:11434')
+    
+    def set_ollama_base_url(self, url: str):
+        """Set Ollama base URL"""
+        self.update_setting('ollama.base_url', url)
+    
+    def get_default_model(self) -> str:
+        """Get default model preference"""
+        return self.get_setting('default_model', 'gpt-4o-mini')
+    
+    def set_default_model(self, model: str):
+        """Set default model preference"""
+        self.update_setting('default_model', model)
+    
+    def get_ollama_auto_pull(self) -> bool:
+        """Get whether to auto-pull missing Ollama models"""
+        return self.get_setting('ollama.auto_pull', True)
+    
+    def set_ollama_auto_pull(self, auto_pull: bool):
+        """Set whether to auto-pull missing Ollama models"""
+        self.update_setting('ollama.auto_pull', auto_pull)
+    
+    def get_preferred_ollama_models(self) -> List[str]:
+        """Get list of preferred Ollama models to show first"""
+        return self.get_setting('ollama.preferred_models', [
+            'llama3.2',
+            'llama3.1',
+            'codellama',
+            'mistral',
+            'gemma2'
+        ])
+    
+    def add_preferred_ollama_model(self, model: str):
+        """Add a model to preferred Ollama models"""
+        models = self.get_preferred_ollama_models()
+        if model not in models:
+            models.insert(0, model)  # Add to top
+            self.update_setting('ollama.preferred_models', models)
+    
     def create_sample_config(self):
         """Create a sample configuration file"""
         sample_config = {
+            "default_model": "gpt-4o-mini",
+            "ollama": {
+                "base_url": "http://localhost:11434",
+                "auto_pull": True,
+                "preferred_models": [
+                    "llama3.2",
+                    "llama3.1", 
+                    "codellama",
+                    "mistral",
+                    "gemma2"
+                ]
+            },
             "servers": [
                 {
                     "name": "filesystem",

@@ -19,6 +19,13 @@ from rich.table import Table
 from rich.text import Text
 from rich.syntax import Syntax
 
+# Import Ollama for local LLM support
+try:
+    import ollama
+    OLLAMA_AVAILABLE = True
+except ImportError:
+    OLLAMA_AVAILABLE = False
+
 console = Console()
 
 
@@ -98,6 +105,117 @@ class MCPClientError(Exception):
     pass
 
 
+class OllamaClient:
+    """
+    Client for interacting with local Ollama models
+    
+    Provides utilities for model management and integration with MCP
+    """
+    
+    def __init__(self, base_url: str = "http://localhost:11434"):
+        self.base_url = base_url
+        self.client = None
+        if OLLAMA_AVAILABLE:
+            try:
+                # Initialize ollama client with custom base URL if provided
+                if base_url != "http://localhost:11434":
+                    self.client = ollama.Client(host=base_url)
+                else:
+                    self.client = ollama.Client()
+            except Exception as e:
+                console.print(f"[yellow]Warning: Failed to initialize Ollama client: {e}[/yellow]")
+    
+    def is_available(self) -> bool:
+        """Check if Ollama is available and running"""
+        if not OLLAMA_AVAILABLE or not self.client:
+            return False
+        
+        try:
+            # Try to list models to check if Ollama is running
+            self.client.list()
+            return True
+        except Exception:
+            return False
+    
+    async def list_models(self) -> List[Dict[str, Any]]:
+        """List available Ollama models"""
+        if not self.is_available():
+            return []
+        
+        try:
+            response = await asyncio.to_thread(self.client.list)
+            return response.get('models', [])
+        except Exception as e:
+            console.print(f"[red]Error listing Ollama models: {e}[/red]")
+            return []
+    
+    async def pull_model(self, model_name: str) -> bool:
+        """Pull a model from Ollama registry"""
+        if not self.is_available():
+            return False
+        
+        try:
+            console.print(f"[cyan]📥 Pulling model: {model_name}[/cyan]")
+            await asyncio.to_thread(self.client.pull, model_name)
+            console.print(f"[green]✅ Model {model_name} pulled successfully[/green]")
+            return True
+        except Exception as e:
+            console.print(f"[red]❌ Error pulling model {model_name}: {e}[/red]")
+            return False
+    
+    async def generate(self, model: str, prompt: str, **kwargs) -> Optional[str]:
+        """Generate text using an Ollama model"""
+        if not self.is_available():
+            return None
+        
+        try:
+            response = await asyncio.to_thread(
+                self.client.generate, 
+                model=model, 
+                prompt=prompt,
+                **kwargs
+            )
+            return response.get('response', '')
+        except Exception as e:
+            console.print(f"[red]Error generating with Ollama model {model}: {e}[/red]")
+            return None
+    
+    async def chat(self, model: str, messages: List[Dict[str, str]], **kwargs) -> Optional[Dict[str, Any]]:
+        """Chat with an Ollama model"""
+        if not self.is_available():
+            return None
+        
+        try:
+            response = await asyncio.to_thread(
+                self.client.chat,
+                model=model,
+                messages=messages,
+                **kwargs
+            )
+            return response
+        except Exception as e:
+            console.print(f"[red]Error chatting with Ollama model {model}: {e}[/red]")
+            return None
+    
+    def get_model_info(self, model_name: str) -> Optional[Dict[str, Any]]:
+        """Get information about a specific model"""
+        if not self.is_available():
+            return None
+        
+        try:
+            return self.client.show(model_name)
+        except Exception as e:
+            console.print(f"[red]Error getting info for model {model_name}: {e}[/red]")
+            return None
+    
+    def format_model_for_litellm(self, model_name: str) -> str:
+        """Format Ollama model name for LiteLLM compatibility"""
+        # LiteLLM expects Ollama models in format: ollama/model_name
+        if not model_name.startswith("ollama/"):
+            return f"ollama/{model_name}"
+        return model_name
+
+
 class MCPClient:
     """
     Core MCP client implementation
@@ -110,6 +228,8 @@ class MCPClient:
         self.connections: Dict[str, Any] = {}
         self.tools: Dict[str, MCPTool] = {}
         self.next_id = 1
+        # Add Ollama client for local LLM support
+        self.ollama_client = OllamaClient()
     
     def get_next_id(self) -> str:
         """Get next request ID"""
@@ -481,6 +601,78 @@ class MCPClient:
         
         console.print(Panel(panel_content, title=f"Tool: {tool.name}", border_style="blue"))
     
+    def is_ollama_available(self) -> bool:
+        """Check if Ollama is available for local LLM usage"""
+        return self.ollama_client.is_available()
+    
+    async def get_ollama_models(self) -> List[Dict[str, Any]]:
+        """Get list of available Ollama models"""
+        return await self.ollama_client.list_models()
+    
+    async def pull_ollama_model(self, model_name: str) -> bool:
+        """Pull an Ollama model"""
+        return await self.ollama_client.pull_model(model_name)
+    
+    def show_ollama_status(self):
+        """Show Ollama availability status"""
+        if OLLAMA_AVAILABLE:
+            if self.is_ollama_available():
+                console.print("[green]🦙 Ollama: Available and running[/green]")
+            else:
+                console.print("[yellow]🦙 Ollama: Installed but not running[/yellow]")
+                console.print("[dim]   Start with: ollama serve[/dim]")
+        else:
+            console.print("[red]🦙 Ollama: Not installed[/red]")
+            console.print("[dim]   Install from: https://ollama.com[/dim]")
+    
+    async def show_ollama_models(self):
+        """Show available Ollama models"""
+        if not self.is_ollama_available():
+            console.print("[yellow]Ollama is not available[/yellow]")
+            return
+        
+        models = await self.get_ollama_models()
+        
+        if not models:
+            console.print("[yellow]No Ollama models found. Pull some models first:[/yellow]")
+            console.print("[dim]  Example: ollama pull llama3.2[/dim]")
+            return
+        
+        table = Table(title="🦙 Available Ollama Models")
+        table.add_column("Model", style="cyan")
+        table.add_column("Size", style="green")
+        table.add_column("Modified", style="yellow")
+        
+        for model in models:
+            name = model.get('name', 'Unknown')
+            size = self._format_bytes(model.get('size', 0))
+            modified = model.get('modified_at', 'Unknown')
+            if modified != 'Unknown':
+                # Format timestamp to be more readable
+                import datetime
+                try:
+                    dt = datetime.datetime.fromisoformat(modified.replace('Z', '+00:00'))
+                    modified = dt.strftime('%Y-%m-%d %H:%M')
+                except:
+                    pass
+            
+            table.add_row(name, size, modified)
+        
+        console.print(table)
+    
+    def _format_bytes(self, bytes_size: int) -> str:
+        """Format bytes to human readable format"""
+        if bytes_size == 0:
+            return "0B"
+        
+        size_names = ["B", "KB", "MB", "GB", "TB"]
+        i = 0
+        while bytes_size >= 1024 and i < len(size_names) - 1:
+            bytes_size /= 1024.0
+            i += 1
+        
+        return f"{bytes_size:.1f}{size_names[i]}"
+
     async def close(self):
         """Close all connections"""
         for server_name, connection in self.connections.items():
