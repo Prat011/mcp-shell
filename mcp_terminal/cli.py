@@ -22,6 +22,7 @@ from rich.markdown import Markdown
 
 from .core import MCPClient, MCPServerConfig, TransportType, MCPClientError
 from .chat import ChatSession
+from .character_chat import CharacterChatSession
 from .config import ConfigManager
 
 console = Console()
@@ -192,6 +193,7 @@ class MCPTerminal:
             ("claude-3-haiku-20240307", "Anthropic Claude 3 Haiku (Fast)"),
             ("gemini-1.5-flash", "Google Gemini 1.5 Flash"),
             ("groq/llama-3.1-70b-versatile", "Groq Llama 3.1 70B"),
+            ("groq/moonshotai/kimi-k2-instruct", "Groq Kimi K2 Instruct (Latest)")
         ]
         
         # Get Ollama models if available
@@ -256,7 +258,7 @@ class MCPTerminal:
             ("OpenAI", ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]),
             ("Anthropic", ["claude-3-5-sonnet-20241022", "claude-3-opus-20240229", "claude-3-haiku-20240307"]),
             ("Google", ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"]),
-            ("Groq", ["groq/llama-3.1-70b-versatile", "groq/llama-3.1-8b-instant", "groq/mixtral-8x7b-32768"]),
+            ("Groq", ["groq/llama-3.1-70b-versatile", "groq/llama-3.1-8b-instant", "groq/mixtral-8x7b-32768", "groq/moonshotai/kimi-k2-instruct"]),
         ]
         
         # Add Ollama if available
@@ -689,6 +691,42 @@ def ask(query, model, api_key):
             await app.cleanup()
     
     asyncio.run(_run_ask())
+
+
+@cli.command()
+@click.option('--model', '-m', default='gpt-4.1', help='LLM model to use')
+@click.option('--api-key', help='API key for LLM (or set via environment)')
+@click.option('--character', '-c', help='Specific historical character to chat with')
+def character(model, api_key, character):
+    """Start interactive chat with historical characters and generate videos"""
+    async def _run_character():
+        try:
+            await app.setup_servers_from_config()
+            
+            character_session = CharacterChatSession(
+                mcp_client=app.client,
+                model=model,
+                api_key=api_key
+            )
+            
+            # If character is specified, set it directly
+            if character:
+                # Find the character in the predefined list
+                char_key = character.lower().replace(' ', '-').replace('_', '-')
+                if char_key in character_session.characters:
+                    character_session.current_character = character_session.characters[char_key]
+                else:
+                    console.print(f"[yellow]⚠️  Character '{character}' not found. Please select from the menu.[/yellow]")
+            
+            await character_session.start_interactive()
+            await character_session.close()
+            
+        except Exception as e:
+            console.print(f"[red]❌ Error in character chat: {e}[/red]")
+        finally:
+            await app.cleanup()
+    
+    asyncio.run(_run_character())
 
 
 def main():

@@ -44,6 +44,14 @@ mcp-terminal chat
 > "Search for information about async Python"
 ```
 
+### 👑 **Historical Character Chat**
+Chat with historical figures and generate videos using Google's Veo 3:
+```bash
+mcp-terminal character
+> "What do you think about the nature of reality?" (Einstein)
+> "How do you approach writing a new play?" (Shakespeare)
+```
+
 ### 🔌 **Multiple Transport Support**
 - **stdio**: Connect to local MCP servers via stdin/stdout
 - **HTTP**: Connect to remote MCP servers via HTTP/REST APIs
@@ -60,6 +68,12 @@ Support for multiple LLM providers through LiteLLM:
 - Anthropic (Claude)
 - Google (Gemini)
 - Groq, Ollama, and more
+
+### 🎬 **Veo 3 Video Generation**
+Generate videos of historical characters speaking using Google's Veo 3 API:
+- Automatic video generation from character responses
+- Historical accuracy in visual representation
+- Browser integration for video playback
 
 ## 🚀 Quick Start
 
@@ -96,6 +110,12 @@ mcp-terminal tool <tool_name>
 ```bash
 export OPENAI_API_KEY="your-api-key"
 mcp-terminal chat
+```
+
+5. **Chat with historical characters:**
+```bash
+export GOOGLE_API_KEY="your-google-api-key"
+mcp-terminal character
 ```
 
 ## 📖 Usage Guide
@@ -162,6 +182,12 @@ mcp-terminal chat
 mcp-terminal chat --model claude-3-5-sonnet-20241022
 ```
 
+**Chat with a specific historical character:**
+```bash
+mcp-terminal character --character einstein
+mcp-terminal character --character shakespeare
+```
+
 ### Available Models
 
 **OpenAI Models:**
@@ -196,6 +222,13 @@ mcp-terminal ask "What files are in my current directory?"
 - `/status` - Show server status  
 - `/clear` - Clear conversation
 - `/exit` - Exit chat
+
+**Character chat commands:**
+- `/help` - Show help
+- `/character` - Change historical character
+- `/video` - Generate video of current response
+- `/clear` - Clear conversation history
+- `/exit` - Exit character chat
 
 ## 🔧 Configuration
 
@@ -269,6 +302,8 @@ export GOOGLE_API_KEY="AI..."
 
 # Groq
 export GROQ_API_KEY="gsk_..."
+
+**Note:** For historical character chat with video generation, you need a Google API key for Veo 3 access.
 ```
 
 ## 💡 Examples
@@ -315,6 +350,19 @@ mcp-terminal chat
 > "Create a new branch called feature/mcp-integration"
 ```
 
+### Historical Character Chat
+```bash
+# Start character chat mode
+mcp-terminal character
+
+# Chat with specific character
+mcp-terminal character --character einstein
+mcp-terminal character --character shakespeare
+
+# Generate video with response
+> "What do you think about the nature of reality?" /video
+```
+
 ## 🛠️ Development
 
 ### Setup Development Environment
@@ -344,6 +392,7 @@ mcp_terminal/
 ├── core.py              # Core MCP client implementation
 ├── cli.py               # Command-line interface
 ├── chat.py              # Interactive chat session
+├── character_chat.py    # Historical character chat with video generation
 └── config.py            # Configuration management
 ```
 

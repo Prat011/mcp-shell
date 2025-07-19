@@ -8,6 +8,7 @@ chat mode with LLM integration for MCP (Model Context Protocol) servers.
 from .core import MCPClient, MCPServerConfig, TransportType, MCPTool, MCPClientError
 from .cli import main
 from .chat import ChatSession
+from .character_chat import CharacterChatSession, HistoricalCharacter, Veo3VideoGenerator
 from .config import ConfigManager
 
 __version__ = "1.0.0"
@@ -21,6 +22,9 @@ __all__ = [
     "MCPTool",
     "MCPClientError",
     "ChatSession",
+    "CharacterChatSession",
+    "HistoricalCharacter",
+    "Veo3VideoGenerator",
     "ConfigManager",
     "main"
 ] 
